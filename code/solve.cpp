@@ -18,6 +18,18 @@ class Solver
     int hidx[N], vidx[N];
     int hcnt[N], vcnt[N];
 
+    int getCandi(int prevColor, int idx, int cnt, const vector<int> &hint)
+    {
+        if (prevColor == BLACK)
+        {
+            if (idx >= hint.size() || cnt >= hint[idx])
+                return WHITE;
+            else
+                return BLACK;
+        }
+        return WHITE | BLACK;
+    }
+
     bool dfs(int r, int c)
     {
         if (c == n)
@@ -38,36 +50,11 @@ class Solver
         }
         int hi = hidx[r], vi = vidx[c];
         int hc = hcnt[r], vc = vcnt[c];
-        auto &hhint = hhints[r], vhint = vhints[c];
+
         int candi = WHITE | BLACK;
-        if (c > 0)
-        {
-            if (board[r][c-1] == BLACK)
-            {
-                if (hi >= hhint.size() || hc >= hhint[hi])
-                {
-                    candi &= ~BLACK;
-                }
-                else
-                {
-                    candi &= ~WHITE;
-                }
-            }
-        }
-        if (r > 0)
-        {
-            if (board[r-1][c] == BLACK)
-            {
-                if (vi >= vhint.size() || vc >= vhint[vi])
-                {
-                    candi &= ~BLACK;
-                }
-                else
-                {
-                    candi &= ~WHITE;
-                }
-            }
-        }
+        if (c > 0) candi &= getCandi(board[r][c-1], hi, hc, hhints[r]);
+        if (r > 0) candi &= getCandi(board[r-1][c], vi, vc, vhints[c]);
+
         if (candi & WHITE)
         {
             hcnt[r] = vcnt[c] = 0;
