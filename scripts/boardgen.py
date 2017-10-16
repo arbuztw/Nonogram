@@ -41,6 +41,9 @@ def main():
     p2 = float(p2)
     seed = long(seed)
 
+    open('tcga2016-question.txt', 'w').close()
+    open('tcga2016-solution.txt', 'w').close()
+
     random.seed(seed)
 
     size = n*n
