@@ -44,18 +44,11 @@ class Solver
     {
         if (c == n)
         {
-            if (hidx[r] != hhints[r].size() - 1 ||
-                hcnt[r] > 0 && hcnt[r] < hhints[r][hidx[r]])
-                return false;
             ++r;
             c = 0;
         }
         if (r == n)
         {
-            for (int c = 0; c < n; c++)
-                if (vidx[c] != vhints[c].size() - 1 ||
-                    vcnt[c] > 0 && vcnt[c] < vhints[c][vidx[c]])
-                    return false;
             return true;
         }
         int hi = hidx[r], vi = vidx[c];
