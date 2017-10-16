@@ -65,16 +65,6 @@ class Solver
         candi &= getCandi(c > 0 ? board[r][c-1] : WHITE, c, hi, hc, hhints[r], hrem[r]);
         candi &= getCandi(r > 0 ? board[r-1][c] : WHITE, r, vi, vc, vhints[c], vrem[c]);
 
-        if (candi & WHITE)
-        {
-            hcnt[r] = vcnt[c] = 0;
-            board[r][c] = WHITE;
-            if (dfs(r, c+1))
-                return true;
-            board[r][c] = NONE;
-            hcnt[r] = hc;
-            vcnt[c] = vc;
-        }
         if (candi & BLACK)
         {
             hcnt[r]++; vcnt[c]++;
@@ -86,6 +76,16 @@ class Solver
             board[r][c] = NONE;
             hcnt[r] = hc; vcnt[c] = vc;
             hidx[r] = hi; vidx[c] = vi;
+        }
+        if (candi & WHITE)
+        {
+            hcnt[r] = vcnt[c] = 0;
+            board[r][c] = WHITE;
+            if (dfs(r, c+1))
+                return true;
+            board[r][c] = NONE;
+            hcnt[r] = hc;
+            vcnt[c] = vc;
         }
         return false;
     }
@@ -163,6 +163,7 @@ int main()
             printf("%d\n", board[i][n-1]-1);
         }
         DEBUG(" Done.\n");
+        fflush(stdout);
     }
     return 0;
 }
