@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
+#include <algorithm>
 #define DEBUG(...) fprintf(stderr, __VA_ARGS__)
 
 const int N = 25;
@@ -15,16 +16,25 @@ class Solver
     int n;
     vector<int> *hhints, *vhints;
     Color (*board)[N];
+    vector<int> hrem[N], vrem[N];
     int hidx[N], vidx[N];
     int hcnt[N], vcnt[N];
 
-    int getCandi(int prevColor, int idx, int cnt, const vector<int> &hint)
+    int getCandi(int prevColor, int pos, int idx, int cnt,
+                 const vector<int> &hint, const vector<int> &rem)
     {
         if (prevColor == BLACK)
         {
             if (idx >= hint.size() || cnt >= hint[idx])
                 return WHITE;
             else
+                return BLACK;
+        }
+        else
+        {
+            if (idx == hint.size() - 1)
+                return WHITE;
+            if (pos + rem[idx+1] >= n)
                 return BLACK;
         }
         return WHITE | BLACK;
@@ -52,8 +62,8 @@ class Solver
         int hc = hcnt[r], vc = vcnt[c];
 
         int candi = WHITE | BLACK;
-        if (c > 0) candi &= getCandi(board[r][c-1], hi, hc, hhints[r]);
-        if (r > 0) candi &= getCandi(board[r-1][c], vi, vc, vhints[c]);
+        candi &= getCandi(c > 0 ? board[r][c-1] : WHITE, c, hi, hc, hhints[r], hrem[r]);
+        candi &= getCandi(r > 0 ? board[r-1][c] : WHITE, r, vi, vc, vhints[c], vrem[c]);
 
         if (candi & WHITE)
         {
@@ -80,6 +90,20 @@ class Solver
         return false;
     }
 
+    void computeRemain(const vector<int> &hint, vector<int> &remain)
+    {
+        remain.clear();
+        int sum = 0;
+        remain.push_back(sum);
+        for (auto it = hint.rbegin(); it != hint.rend(); it++)
+        {
+            sum += *it;
+            remain.push_back(sum);
+            ++sum;
+        }
+        std::reverse(remain.begin(), remain.end());
+    }
+
 public:
     Solver(int _n, vector<int> *_hhints, vector<int> *_vhints, Color _board[][N])
         : n(_n), hhints(_hhints), vhints(_vhints), board(_board)
@@ -89,6 +113,10 @@ public:
             hidx[i] = vidx[i] = -1;
             hcnt[i] = vcnt[i] = 0;
         }
+        for (int i = 0; i < n; i++)
+            computeRemain(vhints[i], vrem[i]);
+        for (int i = 0; i < n; i++)
+            computeRemain(hhints[i], hrem[i]);
     }
 
     void solve()
