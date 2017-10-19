@@ -98,8 +98,8 @@ class Solver
     }
 
 public:
-    Solver(int _n, vector<int> *_hhints, vector<int> *_vhints, Color _board[][N])
-        : n(_n), hhints(_hhints), vhints(_vhints), board(_board)
+    Solver(int _n, vector<int> *_hhints, vector<int> *_vhints)//, Color _board[][N])
+        : n(_n), hhints(_hhints), vhints(_vhints) //, board(_board)
     {
         for (int i = 0; i < n; i++)
         {
@@ -112,8 +112,10 @@ public:
             computeRemain(hhints[i], hrem[i]);
     }
 
-    void solve()
+    void solve(Color _board[][N])
     {
+        board = _board;
+        memset(board, NONE, sizeof(Color)*N*N);
         dfs(0, 0);
     }
 };
@@ -147,16 +149,21 @@ int main()
             ++n;
         }
         n >>= 1;
-        Solver s(n, hints+n, hints, board);
-        s.solve();
+        for (int i = n; i < 3 * n / 2; i++)
+          std::swap(hints[i], hints[3*n-i-1]);
         for (int i = 0; i < n; i++)
+            std::reverse(hints[i].begin(), hints[i].end());
+        Solver s(n, hints+n, hints);
+        s.solve(board);
+        for (int i = n - 1; i >= 0; i--)
         {
-            for (int j = 0; j < n - 1; j++)
+            for (int j = 0; j < n -1; j++)
                 printf("%d\t", board[i][j]-1);
             printf("%d\n", board[i][n-1]-1);
         }
         DEBUG(" Done.\n");
         fflush(stdout);
+        //break;
     }
     return 0;
 }
