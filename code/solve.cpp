@@ -2,17 +2,26 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
+#include <iterator>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #define DEBUG(...) fprintf(stderr, __VA_ARGS__)
+
+using std::vector;
 
 const int N = 25;
 const int BUFSZ = 256;
 
-using std::vector;
+std::mutex m;
+std::condition_variable cv;
+int complete;
 
 enum Color { NONE = 0, WHITE = 1, BLACK = 2 };
 
 class Solver
 {
+    int id;
     int n;
     vector<int> *hhints, *vhints;
     Color (*board)[N];
@@ -42,6 +51,11 @@ class Solver
 
     bool dfs(int r, int c)
     {
+        {
+            std::lock_guard<std::mutex> lk(m);
+            if (complete >= 0)
+                return false;
+        }
         if (c == n)
         {
             ++r;
@@ -98,8 +112,8 @@ class Solver
     }
 
 public:
-    Solver(int _n, vector<int> *_hhints, vector<int> *_vhints, Color _board[][N])
-        : n(_n), hhints(_hhints), vhints(_vhints), board(_board)
+    Solver(int _id, int _n, vector<int> *_hhints, vector<int> *_vhints)
+        : id(_id), n(_n), hhints(_hhints), vhints(_vhints)
     {
         for (int i = 0; i < n; i++)
         {
@@ -112,14 +126,18 @@ public:
             computeRemain(hhints[i], hrem[i]);
     }
 
-    void solve()
+    void solve(Color _board[][N])
     {
-        dfs(0, 0);
+        board = _board;
+        memset(board, NONE, sizeof(Color)*N*N);
+        if (dfs(0, 0))
+        {
+            std::lock_guard<std::mutex> lk(m);
+            complete = id;
+            cv.notify_one();
+        }
     }
 };
-
-vector<int> hints[N*2];
-Color board[N][N];
 
 int main()
 {
@@ -131,6 +149,9 @@ int main()
         int l = strlen(buf);
         buf[l-1] = 0;
         DEBUG("Solving %s ...", buf);
+
+        vector<int> hints[N*2], rhints[N*2];
+        Color board[2][N][N];
         int n = 0;
         while ((r = fgets(buf, 1024, stdin)) && buf[0] != '$')
         {
@@ -147,14 +168,41 @@ int main()
             ++n;
         }
         n >>= 1;
-        Solver s(n, hints+n, hints, board);
-        s.solve();
+        complete = -1;
         for (int i = 0; i < n; i++)
+            std::copy(hints[i].rbegin(), hints[i].rend(), std::back_inserter(rhints[i]));
+        for (int i = n; i < n * 2; i++)
+            std::copy(hints[i].begin(), hints[i].end(), std::back_inserter(rhints[n*3-1-i]));
+
+        Solver s1(0, n, hints+n, hints);
+        auto th1 = std::thread(&Solver::solve, std::ref(s1), board[0]);
+        Solver s2(1, n, rhints+n, rhints);
+        auto th2 = std::thread(&Solver::solve, std::ref(s2), board[1]);
         {
-            for (int j = 0; j < n - 1; j++)
-                printf("%d\t", board[i][j]-1);
-            printf("%d\n", board[i][n-1]-1);
+            std::unique_lock<std::mutex> lk(m);
+            cv.wait(lk, []{ return complete >= 0; });
         }
+        th1.join();
+        th2.join();
+        if (complete == 0)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                for (int j = 0; j < n -1; j++)
+                    printf("%d\t", board[0][i][j]-1);
+                printf("%d\n", board[0][i][n-1]-1);
+            }
+        }
+        else
+        {
+            for (int i = n - 1; i >= 0; i--)
+            {
+                for (int j = 0; j < n - 1; j++)
+                    printf("%d\t", board[1][i][j]-1);
+                printf("%d\n", board[1][i][n-1]-1);
+            }
+        }
+
         DEBUG(" Done.\n");
         fflush(stdout);
     }
