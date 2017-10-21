@@ -18,18 +18,20 @@ std::vector<int> perm(M);
 inline int bit(int x, int i) { return x & (1 << i); }
 // inline int transform(int idx, int n) { return (idx & 1) ? (n - 1 - (idx >> 1)) : (idx >> 1); }
 // inline int transform(int idx, int n) { return n - idx - 1; }
-inline int transform(int idx, int n) { return idx; }
-// inline int transform(int idx, int n) { return perm[idx]; }
+// inline int transform(int idx, int n) { return idx; }
+inline int transform(int idx, int n) { return perm[idx]; }
 
 struct Node
 {
     Node *l, *r;
-    Node() : l(nullptr), r(nullptr) {}
+    //Node() : l(nullptr), r(nullptr) {}
 } mem[MEMSZ];
 int memCnt;
 
 Node *getNode()
 {
+    mem[memCnt].l = nullptr;
+    mem[memCnt].r = nullptr;
     return &mem[memCnt++];
 }
 
@@ -45,7 +47,7 @@ void insert(Node *&root, int val, int idx)
         insert(root->r, val, idx+1);
 }
 
-map<vector<int>, Node*> db;
+map<vector<int>, vector<int>> db;
 
 void gen_db()
 {
@@ -66,9 +68,10 @@ void gen_db()
             }
         }
         if (count > 0) cnts.push_back(count);
-        if (db.find(cnts) == db.end())
+        db[cnts].push_back(s);
+        /*if (db.find(cnts) == db.end())
             db[cnts] = nullptr;
-        insert(db[cnts], s, 0);
+        insert(db[cnts], s, 0);*/
     }
 }
 
@@ -80,6 +83,28 @@ class Solver
     Color (*board)[N];
     vector<int> *vhints, *hhints;
     Node *htries[N], *vtries[N];
+	vector<int> hrem[N];
+    int hidx[N], hcnt[N];
+
+    int getCandi(int prevColor, int pos, int idx, int cnt,
+                 const vector<int> &hint, const vector<int> &rem)
+    {
+        if (prevColor == BLACK)
+        {
+            if (idx >= hint.size() || cnt >= hint[idx])
+                return WHITE;
+            else
+                return BLACK;
+        }
+        else
+        {
+            if (idx == hint.size() - 1)
+                return WHITE;
+            if (pos + rem[idx+1] >= n)
+                return BLACK;
+        }
+        return WHITE | BLACK;
+    }
 
     bool dfs(int ri, int ci)
     {
@@ -89,30 +114,48 @@ class Solver
             ci = 0;
         }
         if (ri == n) return true;
-        int r = transform(ri, n), c = transform(ci, n);
-        Node* htrie = htries[r];
+        int r = transform(ri, n), c = ci;
+        //Node* htrie = htries[r];
+        int hi = hidx[r], hc = hcnt[r];
+        int candi = getCandi(c > 0 ? board[r][c-1] : WHITE, c, hi, hc, hhints[r], hrem[r]);
         Node* vtrie = vtries[c];
-        if (htrie->l && vtrie->l)
+        if ((candi & WHITE) && vtrie->l)
         {
-            htries[r] = htrie->l;
+            hcnt[r] = 0;
             vtries[c] = vtrie->l;
             board[r][c] = WHITE;
             if (dfs(ri, ci+1))
                 return true;
-            htries[r] = htrie;
+            hcnt[r] = hc;
             vtries[c] = vtrie;
         }
-        if (htrie->r && vtrie->r)
+        if ((candi & BLACK) && vtrie->r)
         {
-            htries[r] = htrie->r;
+            hcnt[r]++;
+            if (hcnt[r] == 1) hidx[r]++;
             vtries[c] = vtrie->r;
             board[r][c] = BLACK;
             if (dfs(ri, ci+1))
                 return true;
-            htries[r] = htrie;
+            hcnt[r] = hc;
+            hidx[r] = hi;
             vtries[c] = vtrie;
         }
         return false;
+    }
+
+    void computeRemain(const vector<int> &hint, vector<int> &remain)
+    {
+        remain.clear();
+        int sum = 0;
+        remain.push_back(sum);
+        for (auto it = hint.rbegin(); it != hint.rend(); it++)
+        {
+            sum += *it;
+            remain.push_back(sum);
+            ++sum;
+        }
+        std::reverse(remain.begin(), remain.end());
     }
 
 public:
@@ -120,9 +163,30 @@ public:
         : n(_n), vhints(_vhints), hhints(_hhints)
     {
         for (int i = 0; i < n; i++)
-            vtries[i] = db[vhints[i]];
+            perm[i] = i;
         for (int i = 0; i < n; i++)
-            htries[i] = db[hhints[i]];
+        {
+            hidx[i] = -1;
+            hcnt[i] = 0;
+        }
+        for (int i = 0; i < n; i++)
+            computeRemain(hhints[i], hrem[i]);
+        long long v1 = 0, v2 = 0;
+        for (int i = 0; i < n; i++)
+        {
+            int v = std::max(hrem[i][0], n - hrem[i][0]);
+            v1 += v * (n - i);
+            v2 += v * (i + 1);
+        }
+        if (v2 > v1)
+            std::reverse(perm.begin(), perm.end());
+        memCnt = 0;
+        for (int i = 0; i < n; i++)
+        {
+            vtries[i] = nullptr;
+            for (int s: db[vhints[i]])
+                insert(vtries[i], s, 0);
+        }
     }
 
     void solve(Color _board[][N])
@@ -148,9 +212,9 @@ Color board[N][N];
 
 int main()
 {
-    for (int i = 0; i < M; i++)
+    /*for (int i = 0; i < M; i++)
         perm[i] = i;
-    std::random_shuffle(perm.begin(), perm.end());
+    std::random_shuffle(perm.begin(), perm.end());*/
     gen_db();
     char buf[BUFSZ], *r;
     r = fgets(buf, 1024, stdin);
@@ -181,6 +245,7 @@ int main()
         s.print_board();
         DEBUG(" Done.\n");
         fflush(stdout);
+        //break;
     }
     return 0;
 }
