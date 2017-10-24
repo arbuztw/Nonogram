@@ -6,7 +6,11 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#ifdef ENABLE_DEBUG
 #define DEBUG(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define DEBUG(...) {}
+#endif
 
 using std::vector;
 
